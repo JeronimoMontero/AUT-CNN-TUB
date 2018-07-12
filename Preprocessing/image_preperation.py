@@ -127,7 +127,7 @@ print(get_host_platform)
 part_nr = '2'
 extension = 'JPG'
 read_path = '/home/jeronimo/git/AUT-CNN-TUB/Data/Datensatz/'
-write_path = '/home/jeronimo/git/AUT-CNN-TUB/Data/Centerd/'
+write_path = '/home/jeronimo/git/AUT-CNN-TUB/Data/Centered/'
 new_size = 100
 set_gray = False
 
@@ -136,9 +136,9 @@ for i, file_path in enumerate(files):
     img_name = file_path.split('/')[-1]
     image = cv2.imread(file_path)
     try:
-        img_centerd = get_part_from_image(image)
-        if img_centerd is not None:
-            img_resized = resize_img(img_centerd, resize=True, new_size=new_size, set_gray=set_gray)
+        img_centered = get_part_from_image(image)
+        if img_centered is not None:
+            img_resized = resize_img(img_centered, resize=True, new_size=new_size, set_gray=set_gray)
 
             part_patch = os.path.join(write_path, part_nr)
             if img_resized is not None:
