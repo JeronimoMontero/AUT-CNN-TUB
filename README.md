@@ -42,5 +42,5 @@ This would be necessary if we don't get an image for each part.
 ## Predictor
 
 ## Maybe later
-Function which gets several Images from the same Part in different  angels, to calculate the most likely Name for the Part.
+Function which gets several Images from the same Part in different  angles, to calculate the most likely Name for the Part.
 
