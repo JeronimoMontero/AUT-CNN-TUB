@@ -4,6 +4,7 @@ import os
 import glob
 import platform
 import re
+import util
 
 
 def get_host_platform():
@@ -151,3 +152,11 @@ for i, file_path in enumerate(files):
                                 img_resized)
     except:
         print('ERROR:{} couled nor be procesd'.format(img_name))
+
+
+from_dir = '/home/jeronimo/git/AUT-CNN-TUB/Data/Centered'
+to_dir = '/home/jeronimo/git/AUT-CNN-TUB/Data/'
+archive_name = 'Centered'
+extension = 'zip'
+
+util.zip_to_s3(from_dir, to_dir, extension, archive_name)

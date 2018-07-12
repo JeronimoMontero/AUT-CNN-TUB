@@ -25,7 +25,7 @@ Data Excess will be granted via AWS S3, therefore  you need an VPN connection.
 
 ### Split into Subimages for each part
 
-This would be necessary if we don't get an image fore each part.
+This would be necessary if we don't get an image for each part.
 
 ### Centering Image
 + http://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_contours/py_contour_features/py_contour_features.html
