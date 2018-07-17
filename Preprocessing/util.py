@@ -22,7 +22,7 @@ def zip_to_s3(from_dir, to_dir, extension, archive_name):
     print('uploading {}.{} finished'.format(archive_name, extension))
 
 
-def s3_to_data_set(hdf5_path, shuffle_data = True, train_path):
+def s3_to_data_set(hdf5_path,train_path, shuffle_data=True ):
 
     # read addresses and labels from the 'train' folder
     addrs = glob.glob(train_path)
@@ -44,12 +44,10 @@ def s3_to_data_set(hdf5_path, shuffle_data = True, train_path):
     # open a hdf5 file and create earrays
     hdf5_file = tables.open_file(hdf5_path, mode='w')
     train_storage = hdf5_file.create_earray(hdf5_file.root, 'train_img', img_dtype, shape=data_shape)
-    val_storage = hdf5_file.create_earray(hdf5_file.root, 'val_img', img_dtype, shape=data_shape)
     test_storage = hdf5_file.create_earray(hdf5_file.root, 'test_img', img_dtype, shape=data_shape)
     mean_storage = hdf5_file.create_earray(hdf5_file.root, 'train_mean', img_dtype, shape=data_shape)
     # create the label arrays and copy the labels data in them
     hdf5_file.create_array(hdf5_file.root, 'train_labels', train_labels)
-    hdf5_file.create_array(hdf5_file.root, 'val_labels', val_labels)
     hdf5_file.create_array(hdf5_file.root, 'test_labels', test_labels)
 
 
