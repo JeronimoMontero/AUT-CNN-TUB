@@ -32,7 +32,7 @@ home = os.getcwd().split('AUT-CNN-TUB')[0]
 DATE = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 
 MINIBATCH_SIZE  = 100
-STEPS = 5000
+STEPS = 500
 PIXEL = 28
 COLOR = 3 # 3 or 1
 CFAK = 6
@@ -211,9 +211,9 @@ with tf.Session() as sess:
 
                 epoch_counter += 1
                 
-                test_sum = 0
-                cross_entro_sum = 0
-                for test in range(0,test_number, 100):
+                test_sum = []
+                cross_entro_sum = []
+                for test in range(0,test_number, 100): ##############################################################
 
                     tX_batch, ty_batch, file_name = test_img.get_batch(100) # 
 
@@ -221,24 +221,25 @@ with tf.Session() as sess:
                     cross_entro = sess.run(cross_entropy, feed_dict={x: tX_batch, y_: ty_batch, keep_prob: 1.0})
 
 
-                    test_sum = (test_sum + test_accuracy) /2
-                    cross_entro_sum = (cross_entro_sum + cross_entro)/2
+                    test_sum.append(test_accuracy) 
+                    cross_entro_sum.append(cross_entro)
 
-                logger.info("epoch {}, test accuracy {}".format(epoch_counter, test_accuracy))
+                logger.info("epoch {}, test accuracy {}".format(epoch_counter, np.mean(test_sum)))
                 logger.info("epoch {}, training accuracy {}".format(epoch_counter, train_accuracy))
-                logger.info("epoch {}, cross entropy {}".format(epoch_counter, cross_entro))
+                logger.info("epoch {}, cross entropy {}".format(epoch_counter, np.mean(cross_entro_sum)))
 
             sess.run(train_step, feed_dict={x: X_batch, y_: y_batch, keep_prob: DROP})
-        test_sum = 0
+        
+        test_sum = []
         for test in range(0,test_number, 100):
 
             tX_batch, ty_batch, file_name = test_img.get_batch(100) # 
 
             test_accuracy = sess.run(accuracy, feed_dict={x: tX_batch, y_: ty_batch, keep_prob: 1.0}) 
 
-            test_sum = (test_sum + test_accuracy) / 2
+            test_sum.append(test_accuracy) 
 
-        logger.info("test accuracy: {}".format(test_sum))
+        logger.info("test accuracy: {}".format(np.mean(test_sum)))
 
         model_path_file  = os.path.join(model_path, 'model_merge_{}_b{}_s{}_{}.ckpt'.format(
 		                                PIXEL, MINIBATCH_SIZE, STEPS, DATE))
@@ -274,4 +275,4 @@ else:
 s3.Bucket('imagesforcnn').put_object(Key=key, Body=data)
 
 logger.info('Model saved on S3')
-logger.info('Model training tock, {} secondes'.format(str(end-start)))
+
