@@ -1,4 +1,7 @@
 import tensorflow as tf
+"""
+helper functions for the net architecture
+"""
 
 
 def weight_variable(shape):
