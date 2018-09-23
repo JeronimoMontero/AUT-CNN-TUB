@@ -99,9 +99,9 @@ else:
 assert COLOR in [3, 1]
 
 # path to the data set
-test_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}/test/'.format(PIXEL))
-train_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}/train/'.format(PIXEL))
-val_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}/validate'.format(PIXEL))
+test_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}_cleaned/test/'.format(PIXEL))
+train_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}_cleaned/train/'.format(PIXEL))
+val_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}_cleaned/validate'.format(PIXEL))
 
 # get number of images
 test_number = len(os.listdir(test_path))
