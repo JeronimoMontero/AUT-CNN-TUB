@@ -5,7 +5,6 @@
 #  source ~/envs/tensorflow/bin/activate  #
 #                                         #
 ###########################################
-
 import tensorflow as tf
 import numpy as np
 import cv2
@@ -45,7 +44,7 @@ DATE = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 
 ARCHITECTURE = '3CONV_MEMORY'  # tag
 MINIBATCH_SIZE = 50
-STEPS = 15064
+STEPS = 150#64
 CONV1_DEPTH = 32
 
 PIXEL = 28
@@ -99,9 +98,9 @@ else:
 assert COLOR in [3, 1]
 
 # path to the data set
-test_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}/test/'.format(PIXEL))
-train_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}/train/'.format(PIXEL))
-val_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}/validate'.format(PIXEL))
+test_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}_cleaned/test/'.format(PIXEL))
+train_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}_cleaned/train/'.format(PIXEL))
+val_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}_cleaned/validate'.format(PIXEL))
 
 # get number of images
 test_number = len(os.listdir(test_path))
@@ -238,6 +237,11 @@ full1_drop = tf.nn.dropout(full_1, keep_prob=keep_prob)
 # output layer
 y_conv = full_layer(full1_drop, len(position_dict))
 
+predict = tf.argmax(y_conv, 1, name='predict')
+
+
+tf.add_to_collection("y_conv", y_conv)
+
 # loss function
 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=y_conv, labels=y_))
 
@@ -339,7 +343,13 @@ with tf.Session() as sess:
     saver = tf.train.Saver()
     save_path = saver.save(sess, model_path_file)
 
+    tf.saved_model.simple_save(sess,
+                               model_path + '/simple_save',
+                               inputs={'x': x, 'keep_prob': keep_prob},
+                               outputs={'full': y_conv, 'predict': predict})
+
 ########################################################################################################################
+logger.info("Model saved in path: %s" % model_path)
 
 logger.info("Model saved in path: %s" % save_path)
 

@@ -235,6 +235,9 @@ full1_drop = tf.nn.dropout(full_1, keep_prob=keep_prob)
 # output layer
 y_conv = full_layer(full1_drop, len(position_dict))
 
+predict = tf.argmax(y_conv, 1, name='predict')
+
+
 # loss function
 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=y_conv, labels=y_))
 
@@ -336,7 +339,14 @@ with tf.Session() as sess:
     saver = tf.train.Saver()
     save_path = saver.save(sess, model_path_file)
 
+    tf.saved_model.simple_save(sess,
+                               model_path + '/simple_save',
+                               inputs={'x': x, 'keep_prob': keep_prob},
+                               outputs={'full': y_conv, 'predict': predict})
+
+
 ########################################################################################################################
+logger.info("Model saved in path: %s" % model_path)
 
 logger.info("Model saved in path: %s" % save_path)
 

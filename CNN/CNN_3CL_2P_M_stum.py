@@ -5,7 +5,6 @@
 #  source ~/envs/tensorflow/bin/activate  #
 #                                         #
 ###########################################
-
 import tensorflow as tf
 import numpy as np
 import cv2
@@ -16,15 +15,15 @@ import datetime
 import logging
 import shutil
 import boto3
-import matplotlib.pyplot as plt
-import seaborn as sns
+# import matplotlib.pyplot as plt
+# import seaborn as sns
 import pandas as pd
 import re
 
 # load helper functions for the net architecture
 from layers import conv_layer, max_pool_2x2, full_layer
 
-sns.set_style("whitegrid")
+#sns.set_style("whitegrid")
 
 
 # Create a resource service client, and select bucket
@@ -45,7 +44,7 @@ DATE = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 
 ARCHITECTURE = '3CONV_MEMORY'  # tag
 MINIBATCH_SIZE = 50
-STEPS = 15064
+STEPS = 50# 15064
 CONV1_DEPTH = 32
 
 PIXEL = 28
@@ -99,9 +98,9 @@ else:
 assert COLOR in [3, 1]
 
 # path to the data set
-test_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}/test/'.format(PIXEL))
-train_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}/train/'.format(PIXEL))
-val_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}/validate'.format(PIXEL))
+test_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}_cleaned/test/'.format(PIXEL))
+train_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}_cleaned/train/'.format(PIXEL))
+val_path = os.path.join(home, 'AUT-CNN-TUB/Data/TF_Images_final_{}_cleaned/validate'.format(PIXEL))
 
 # get number of images
 test_number = len(os.listdir(test_path))
@@ -162,12 +161,12 @@ class DataGetter:
         label_bin_list = []
 
         for file_path in self.files:
-
             if self.GRBtoGray is True:
                 img = cv2.imread(file_path, flags=0)
                 img = img.reshape(img.shape[0], img.shape[1], 1)
             else:
                 img = cv2.imread(file_path, flags=1)
+
             label_str = file_path.split('/')[-1][:4]
             label_bin = label_to_binary(position_dict, label_str)
 
@@ -208,8 +207,8 @@ val_img = DataGetter(val_path, Gray)
 ########################################################################################################################
 
 # placeholder for images and labels
-x = tf.placeholder(tf.float32, shape=[None, PIXEL, PIXEL, COLOR])
-y_ = tf.placeholder(tf.float32, shape=[None, len(position_dict)])
+x = tf.placeholder(tf.float32, shape=[None, PIXEL, PIXEL, COLOR], name='x')
+y_ = tf.placeholder(tf.float32, shape=[None, len(position_dict)], name='y_')
 
 # 1 convolution layer with max pooling
 conv1 = conv_layer(x, shape=[CONV, CONV, COLOR, CONV1_DEPTH])
@@ -221,10 +220,6 @@ conv2_pool = max_pool_2x2(conv2)
 
 # 3 convolution layer
 conv3 = conv_layer(conv2_pool, shape=[CONV, CONV, CONV1_DEPTH * 2, CONV1_DEPTH * 4])
-conv3_pool = max_pool_2x2(conv3)
-
-# if PIXEL is not dividable by 8
-assert PIXEL % 8 is not 0
 
 new_size = int(PIXEL/4*PIXEL/4 * CONV1_DEPTH * 4)
 
@@ -232,7 +227,7 @@ if PIXEL % 2 is not 0:
     logger.warning('potential issue with the pixel size')
 
 # fully connected flatt layer
-conv3_flat = tf.reshape(conv3_pool, [-1, new_size])
+conv3_flat = tf.reshape(conv3, [-1, new_size])
 full_1 = tf.nn.relu(full_layer(conv3_flat, 1024))
 
 # drop out
@@ -261,7 +256,9 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 # tensorflow session
 ########################################################################################################################
 
+#with tf.Session() as sess:
 with tf.Session() as sess:
+
     sess.run(tf.global_variables_initializer())
 
     for i in range(STEPS):
@@ -269,7 +266,7 @@ with tf.Session() as sess:
         X_batch, y_batch, _ = train_img.get_batch(MINIBATCH_SIZE)
 
         # calculate outcome for logging
-        if i % int(STEPS/100) == 0:
+        if i % int(STEPS/10) == 0:
 
             #########
             # train
@@ -343,184 +340,16 @@ with tf.Session() as sess:
     model_path_file = os.path.join(model_path, 'model_merge_{}_b{}_s{}_{}.ckpt'.format(
                                 PIXEL, MINIBATCH_SIZE, STEPS, DATE))
     # save the model
+    tf.saved_model.simple_save(sess,
+                   model_path + '/simple_save',
+                   inputs={'x': x, 'keep_prob': keep_prob},
+                   outputs={'full': y_conv, 'predict': predict})
+
     saver = tf.train.Saver()
     save_path = saver.save(sess, model_path_file)
-
-    tf.saved_model.simple_save(sess,
-                               model_path + '/simple_save',
-                               inputs={'x': x, 'keep_prob': keep_prob},
-                               outputs={'full': y_conv, 'predict': predict})
-
 
 ########################################################################################################################
 logger.info("Model saved in path: %s" % model_path)
 
 logger.info("Model saved in path: %s" % save_path)
-
-end = time.time()
-
-logger.info('Model training took, {} seconds'.format(str(end - start)))
-
-# make graphs
-with open((os.path.join(model_path, 'model.log'))) as f:
-    f = f.readlines()
-
-steps_entro_train = []
-steps_ac_train = []
-steps_entro_val = []
-steps_ac_val = []
-step = []
-epoch = []
-epoch_entro_test = []
-epoch_ac_test = []
-epoch_ac_train = []
-
-for line in f:
-    if 'step' in line:
-        if 'validation cross entropy' in line:
-            step.append(int(line.split('step')[1].split(',')[0]))
-            steps_entro_val.append(float(line.split('validation cross entropy ')[-1][:-1]))
-
-        elif 'validation accuracy' in line:
-            steps_ac_val.append(float(line.split('validation accuracy ')[-1][:-1]))
-
-        elif 'train accuracy' in line:
-            steps_ac_train.append(float(line.split('train accuracy ')[-1][:-1]))
-        elif 'train cross entropy' in line:
-            steps_entro_train.append(float(line.split('train cross entropy ')[-1][:-1]))
-
-    elif 'epoch' in line:
-        if 'test accuracy' in line:
-            epoch.append(int(line.split('epoch')[1].split(',')[0]))
-            epoch_ac_test.append(float(line.split('test accuracy ')[1][:-1]))
-        elif 'training accuracy' in line:
-            epoch_ac_train.append(float(line.split('training accuracy ')[1][:-1]))
-        elif 'cross' in line:
-            epoch_entro_test.append(float(line.split('cross entropy ')[-1][:-1]))
-
-fig, ax1 = plt.subplots(figsize=(15, 10))
-
-ax1.plot(step, steps_entro_val, 'bo', label='Val.')
-ax1.plot(step, steps_entro_val, 'b', lw=2.5)
-ax1.plot(step, steps_entro_train, 'yo', label='Train')
-ax1.plot(step, steps_entro_train, 'y', lw=2.5)
-ax1.set_ylim([0, 20])
-ax1.set_yticks(list(range(0, 21, 4)))
-ax1.set_xlabel('Steps').set_fontsize(20)
-ax1.tick_params('x', labelsize=15)
-ax1.legend(loc=6, fontsize=15)
-ax1.set_ylabel('Cross Entropy', color='b').set_fontsize(20)
-ax1.tick_params('y', colors='b', labelsize=15)
-
-ax2 = ax1.twinx()
-ax2.set_ylim([0, 1])
-ax2.plot(step, steps_ac_val, 'ro', label='Val.')
-ax2.plot(step, steps_ac_val, 'r', lw=2.5)
-ax2.plot(step, steps_ac_train, 'go', label='Train')
-ax2.plot(step, steps_ac_train, 'g', lw=2.5)
-ax2.set_ylabel('Accuracy', color='r').set_fontsize(20)
-ax2.tick_params('y', colors='r', labelsize=15)
-ax2.legend(loc=7, fontsize=15)
-fig.tight_layout()
-plt.savefig(model_path + '/graph')
-plt.close()
-
-value_list = []
-parameter_list = ['ARCHITECTURE', 'MINIBATCH_SIZE', 'STEPS', 'PIXEL', 'COLOR', 'CONV',
-                  'EPOCH', 'CONV1_DEPTH']
-
-for parameter in parameter_list:
-    try:
-        value_list.append(re.findall('(?<={}:\s)\w+'.format(parameter), f[0])[0])
-    except:
-        value_list.append('?')
-for line in f:
-
-    if 'DROP_KEEP' in line:
-        value_list.append(float(re.findall('(?<=DROP_KEEP: )\d+.\d+', line)[0]))
-        parameter_list.append('DROP_KEEP')
-
-    if 'Model training took' in line:
-        value_list.append(float(re.findall('(?<=Model training took, )\d+.\d+', line)[0]) / 60)
-        parameter_list.append('RUNTIME')
-    if 'test accuracy' in line:
-        try:
-            value_list.append(round(float(re.findall('(?<=test accuracy: )\d.\d+', line)[0]), 5))
-        except:
-            value_list.append('?')
-        parameter_list.append('TEST_ACCURACY')
-    if 'LEARNING' in line:
-        try:
-            value_list.append(re.findall('(?<=LEARNING: )\d.\d+', line)[0])
-        except:
-            value_list.append('?')
-        parameter_list.append('LEARNING')
-
-value_list.append(f[0].split(' - root -')[0])
-parameter_list.append('START_TIME')
-
-df = pd.DataFrame(data=value_list, index=parameter_list, columns=[''])
-
-# save parameter as csv
-df.to_csv(model_path + '/table.csv')
-
-fig, ax1 = plt.subplots(figsize=(15, 10))
-
-ax1.plot(step, steps_entro_val, 'bo', label='Val.')
-ax1.plot(step, steps_entro_val, 'b', lw=2.5)
-ax1.plot(step, steps_entro_train, 'yo', label='Train')
-ax1.plot(step, steps_entro_train, 'y', lw=2.5)
-ax1.set_ylim([0, 20])
-ax1.set_yticks(list(range(0, 21, 4)))
-ax1.set_xlabel('Steps').set_fontsize(20)
-ax1.tick_params('x', labelsize=15)
-ax1.legend(loc=6, fontsize=15)
-
-# Make the y-axis label, ticks and tick labels match the line color.
-ax1.set_ylabel('Cross Entropy', color='b').set_fontsize(20)
-ax1.tick_params('y', colors='b', labelsize=15)
-
-ax2 = ax1.twinx()
-ax2.set_ylim([0, 1])
-ax2.plot(step, steps_ac_val, 'ro', label='Val.')
-ax2.plot(step, steps_ac_val, 'r', lw=2.5)
-
-ax2.plot(step, steps_ac_train, 'go', label='Train')
-ax2.plot(step, steps_ac_train, 'g', lw=2.5)
-ax2.set_ylabel('Accuracy', color='r').set_fontsize(20)
-
-ax2.tick_params('y', colors='r', labelsize=15)
-
-ax2.legend(loc=7, fontsize=15)
-fig.tight_layout()
-
-props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-ax2.text(1.1, 0.75, 'HYPERPARAMETER:\n' + df.to_string(), transform=ax2.transAxes, fontsize=20, family='monospace',
-         verticalalignment='top', bbox=props)
-plt.savefig(model_path + '/graph_data', bbox_inches='tight', pad_inches=0.5)
-
-# compress
-shutil.make_archive(model_path,
-                    'zip',
-                    model_path)
-
-# upload the compressed file to aws S3, aws cli is needed
-path = model_path + '.zip'
-data = open(os.path.join(home, path), 'rb')
-folder = 'models'
-subfolder = None
-name = path.split('/')[-1]
-
-if folder is not None:
-    if subfolder is not None:
-        key = '{}/{}/{}'.format(folder, subfolder, name)
-    else:
-        key = '{}/{}'.format(folder, name)
-else:
-    key = '{}'.format(name)
-
-s3.Bucket('imagesforcnn').put_object(Key=key, Body=data)
-
-logger.info('Model saved on S3')
-
 
