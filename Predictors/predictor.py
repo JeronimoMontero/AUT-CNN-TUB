@@ -1,3 +1,11 @@
+# coding: utf-8
+
+#########################################
+#
+#  source ~/envs/tensorflow/bin/activate
+#
+#########################################
+
 import tensorflow as tf
 import numpy as np
 import cv2
@@ -8,20 +16,24 @@ import sys
 assert (len(sys.argv) > 1), 'Image path is missing'
 assert os.path.exists(sys.argv[1]), 'Image path does not exist'
 
+# get path to image
 file_path = sys.argv[1]
-
-new_size = 56
 
 home = os.getcwd().split('AUT-CNN-TUB')[0]
 
-path = os.path.join(home,
-                    'AUT-CNN-TUB/Data/Models/aws_28/model_merge_3CONV_MEMORY_56_b50_s13314_2018-09-23_15-36',
-                    'model.log')
-export_dir = os.path.join(path.split('model.log')[0], 'simple_save')
+# path to model
+path = os.path.join(home, 'AUT-CNN-TUB/Data/Models/model_merge_3CONV_3P_MEMORY_56_b50_s53256_2018-09-26_18-07')
+export_dir = os.path.join(path, 'simple_save')
 
 
-# load images
+# load model
+predict_fn = tf.contrib.predictor.from_saved_model(export_dir)
 
+# get pixel-size from model
+new_size = int(predict_fn.feed_tensors['x'].shape[2])
+
+
+# load images and center/scale it
 def get_part_from_image(image, scale=1.1):
     imgray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     brightness = imgray.mean()
@@ -55,6 +67,7 @@ img_name = file_path.split('/')[-1].replace('.jpg', '')
 image = cv2.imread(file_path)
 
 img_centerd = get_part_from_image(image, scale=1.5)
+
 if img_centerd is not None:
     try:
         img_resized = cv2.resize(img_centerd, (new_size, new_size))
@@ -66,13 +79,35 @@ if img_centerd is not None:
     assert img_resized.var() > 200, 'Image {}.jpg does not have the necessary variance.'.format(img_name)
 
 
-predict_fn = tf.contrib.predictor.from_saved_model(export_dir)
-predictions = predict_fn({'x': np.array([img_resized]), 'keep_prob': 1})
+img_cutted = cv2.resize(img_resized, (new_size, new_size))
 
+# gray
+if predict_fn.graph.get_tensor_by_name('Variable:0').shape[2] == 1:
+
+    img_cutted = cv2.cvtColor(img_cutted, cv2.COLOR_BGR2GRAY)
+    img_cutted = img_cutted.reshape(img_cutted.shape[0], img_cutted.shape[1], 1)
+
+    predictions = predict_fn({'x': np.array([img_cutted]).astype(dtype='float64'),
+                              'keep_prob': 1})
+
+# color
+else:
+    predictions = predict_fn({'x': np.array(img_cutted).reshape(1, new_size, new_size, 3).astype(dtype='float64'),
+                              'keep_prob': 1})
+
+# translator
 label_list = ['1', '2', '3', '4', '5', '6', '7.1', '7.2', '8', '9', '10', '11', '12', '13', '14', '15']
 
-print(label_list[int(predictions['predict'][0])])
+with tf.Session() as sess:
+    confidence = sess.run(tf.nn.softmax(logits=predictions['full'].astype(dtype='float64')))
 
-im = Image.fromarray(cv2.resize(img_resized, (500, 500)))
+print('\nprobably part:', label_list[int(predictions['predict'][0])], '\n')
+
+
+for n, confi in enumerate((np.round_(confidence, 3) * 100).astype(int)[0].tolist()):
+    print('{}\t{}%'.format(label_list[n], confi))
+
+print('\n')
+im = Image.fromarray(cv2.resize(cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB), (500, 500)))
 
 im.show(title=img_name)

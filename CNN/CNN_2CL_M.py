@@ -2,7 +2,7 @@
 
 ###########################################
 #                                         #
-#  source ~/envs/tensorflow/bin/activate  #
+#  source ~/envs/tensorflow/bin/activate   #
 #                                         #
 ###########################################
 
